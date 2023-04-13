@@ -1,28 +1,40 @@
-from get import get_classes, get_users
-import json
+import pymysql
+import os
 
-folder = "/home/ahfetea/mysite/"
+def add(course_num, phone_num):
+    db = pymysql.connect(host=os.environ['DB_HOST'],user=os.environ['DB_USER'],\
+                         password=os.environ['DB_PASSWORD'],database=os.environ['DB_DATABASE'], port=3306 )
 
-def add_class(class_num, user_id):
+    cursor = db.cursor()
 
-    classes=get_classes()
+    query = f'SELECT COUNT(*) FROM Courses WHERE CourseNumber = "{course_num}"'
 
-    if class_num in list(classes.keys()):
-        classes[class_num]['user_ids'] = set(classes[class_num]['user_ids']+[user_id])
-    else:
-        classes[class_num] = {'user_ids': [user_id], "last_accessed": "0.0"}
+    cursor.execute(query)
 
-    with open(folder+"Classes.txt", "w") as outfile:
-        json.dump(classes, outfile)
+    result = cursor.fetchone()
 
-def add_user(phone_num, name):
+    if result[0] == 0:
+        query = f'INSERT INTO Courses (CourseNumber, LastAccessed) VALUES ("{course_num}", 0.0);'
 
-    users=get_users()
+        cursor.execute(query)
 
-    if phone_num in list(users.keys()):
-        return
+        db.commit()
 
-    users[phone_num] = name
 
-    with open(folder+"Users.txt", "w") as outfile:
-        json.dump(users, outfile)
+
+    query = f'Select COUNT(*) FROM PhoneNumbers WHERE CourseNumber = "{course_num}" && PhoneNumber = "{phone_num}"'
+
+    cursor.execute(query)
+
+    result = cursor.fetchone()
+
+    if result[0] > 0:
+        raise Exception('Duplicate Record')
+
+    query = f'INSERT INTO PhoneNumbers (PhoneNumber, CourseNumber) VALUES ("{phone_num}", "{course_num}");'
+
+    cursor.execute(query)
+
+    db.commit()
+
+    db.close()
